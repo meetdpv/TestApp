@@ -1,0 +1,85 @@
+influxdb:
+  image: influxdb:latest
+  container_name: influxdb
+  restart: always
+  ports:
+    - "8083:8083"
+    - "8086:8086"
+    - "8090:8090"
+  env_file:
+    - './influxdb/env.influxdb'
+  volumes:
+    # Data persistency
+    # sudo mkdir -p /srv/docker/influxdb/data
+    - /srv/docker/influxdb/data:/var/lib/influxdb
+
+telegraf:
+  image: telegraf:1.1
+  container_name: telegraf
+  restart: always
+  links:
+    - influxdb
+  volumes:
+    - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+
+grafana:
+  image: grafana/grafana:5.1.2
+  user: "0"
+  container_name: grafana
+  restart: always
+  ports:
+    - "3000:3000"
+  env_file:
+    - './grafana/env.grafana'
+  links:
+    - influxdb
+  volumes:
+    # Data persistency
+    # sudo mkdir -p /srv/docker/grafana/data 
+    # chown 472:472 /srv/docker/grafana/data
+    - /srv/docker/grafana/data:/var/lib/grafana
+    
+elasticsearch:
+  container_name: elasticsearch
+  environment:
+          # - cluster.name=docker-cluster
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+  restart: always
+  image: elasticsearch:6.5.0
+  #net: ${CUSTOM_NETWORK_NAME}
+  #command: elasticsearch -Des.network.host=0.0.0.0
+  ports:
+    - "9200:9200"
+  volumes:
+    - elasticsearch_data:/srv/docker/elasticsearch/data
+
+jenkins:
+  container_name: jenkins
+  restart: always
+  image: jenkins/jenkins:latest
+  #build: ../images/docker-jenkins/
+  #net: ${CUSTOM_NETWORK_NAME}
+  ports:
+    - "8080:8080"
+    - "50000:50000"
+  expose:
+    - "8080"
+    - "50000"
+  privileged: true 
+  user: jenkins
+  volumes:
+    - /data/jenkins:/srv/docker/jenkins_home
+    - /var/run/docker.sock:/var/run/docker.sock
+  environment:
+    JENKINS_HOST_HOME: "/data/jenkins"
+    
+jmeter:
+  image: jmeter:3.3
+  container_name: jmeter
+  restart: always
+  links:
+    - jenkins
+  volumes:
+    - jmeter_data:/srv/docker/jmeter/data
+  
